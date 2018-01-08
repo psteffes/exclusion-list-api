@@ -1,6 +1,8 @@
 from django.conf import settings
-import logging
 from ldap3 import Server, Connection, ALL, MODIFY_REPLACE
+
+import time
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -20,100 +22,122 @@ class ExcListError(Error):
         self.message = message
 
 
-# Search the mcomm ExclusionList branch on the provided key
-# Default ou is IDProof
-def exc_list_find(data, ou='IDProof'):
-
-    # Search the admin ou for blacklisted umid
-    umid = data['umid']
-    base = 'ou=Admin,ou=ExclusionList,dc=umich,dc=edu'
-    entry = _mcomm_exclist_search(umid, base)
-
-    # If we have an entry, the id is blacklisted and should not be allowed to proceed
-    if entry:
-        logger.debug('Found dn={}'.format(entry.entry_dn))
-    else:
-        logger.debug('No entry in ou=Admin, checking ou={}'.format(ou))
-
-        # Search the specified ou for the given key
-        key = data['key']
-        base = 'ou={},ou=ExclusionList,dc=umich,dc=edu'.format(ou)
-        entry = _mcomm_exclist_search(key, base)
-
-        if entry:
-            logger.debug('Found dn={}'.format(entry.entry_dn))
-        else:
-            logger.debug('No entry found')
-
-
-    return entry
-
-
-def exc_list_add(data, ou='IDProof'):
-
-    key = data['key']
-    base = 'ou={},ou=ExclusionList,dc=umich,dc=edu'.format(ou)
-    entry = _mcomm_exclist_search(key, base)
-
-    print('entry={}'.format(entry))
-
-    # TODO: check for more than one result returned
-    if entry:
-        entry = conn.entries[0]
-        logger.debug('Found dn={}'.format(entry.entry_dn))
-    else:
-        new_dn = 'umichExcListName={},ou={},ou=ExclusionList,dc=umich,dc=edu'.format(key, ou)
-        objectClasses = {'Top', 'umichExcListText'}
-        attrs = {'umichExcListBadAttempts': 1}
-        server = Server(settings.LDAP_URI)
-        conn = Connection(server, settings.LDAP_USERNAME, settings.LDAP_PW, auto_bind=True)
-        conn.add(
-            new_dn,
-            objectClasses,
-            attrs,
-        )
-        entry = _mcomm_exclist_search(key, base)
-        logger.debug('Created new_dn={}'.format(new_dn))
-
-    return entry
-
-
-def exc_list_delete(data, ou='IDProof'):
-
-    key = data['key']
-    delete_dn = 'umichExcListName={},ou={},ou=ExclusionList,dc=umich,dc=edu'.format(key, ou)
-    print('delete_dn={}'.format(delete_dn))
+class ExcList:
+    """
+    Interact with the Exclusion List - find, add, delete
+    """
 
     server = Server(settings.LDAP_URI)
-    conn = Connection(server, settings.LDAP_USERNAME, settings.LDAP_PW, auto_bind=True)
-    conn.delete(delete_dn)
-
-    # Return the result description as message
-    # 'success' if the object was deleted
-    # 'noSuchObject' if the object did not exist
-    return conn.result['description']
-
-
-def _mcomm_exclist_search(key, base):
-    entry = ''
-    logger.debug('Searching for umichExcListName={}'.format(key))
-    server = Server(settings.LDAP_URI)
-    conn = Connection(server, settings.LDAP_USERNAME, settings.LDAP_PW, auto_bind=True)
-    conn.search(
-        base,
-        '(umichExcListName={})'.format(key),
-        attributes=['*'],
-        time_limit=settings.LDAP_TIME_LIMIT,
+    conn = Connection(
+        server,
+        settings.LDAP_USERNAME,
+        settings.LDAP_PW,
+        auto_bind=True,
+        check_names=False,    # Do not check attr format from schema (for time formatting)
     )
 
-    # TODO: check for more than one result returned
-    if len(conn.entries) == 1:
-        entry = conn.entries[0]
-        logger.debug('Found dn={}'.format(entry.entry_dn))
-    elif len(conn.entries) == 0:
-        pass
-    else:
-        logger.error('multiple results found')
-        raise ExcListError(message='multiple_results_found')
+    def find(self, data, ou='IDProof'):
+        umid = data['umid']
+        key = data['key']
 
-    return entry
+        # Default values for response
+        response = {
+            'excluded': False,
+            'umid_blacklisted': False,
+            'max_attempts_exceeded': False,
+        }
+
+        # Search the admin ou for blacklisted umid
+        entry = self._search(umid, ou='Admin')
+
+        if entry:
+            print('Found dn={}'.format(entry.entry_dn))
+            response['excluded'] = True
+            response['umid_blacklisted'] = True
+        else:
+            print('No entry in ou=Admin, checking ou={}'.format(ou))
+
+        # Search the specified ou for the given key
+        base = 'ou={},ou=ExclusionList,dc=umich,dc=edu'.format(ou)
+        entry = self._search(key, ou)
+
+        if entry:
+            print('Found dn={}'.format(entry.entry_dn))
+            response['entry'] = entry.entry_attributes_as_dict
+            print('entry={}'.format(entry))
+        else:
+            print('no entry found')
+
+        if response == {}:
+            raise ExcListError('not_found')
+
+        print('response={}'.format(response))
+        return response
+
+
+    def add(self, data, ou='IDProof'):
+        key = data['key']
+
+        # Check if an entry already exists
+        entry = self._search(key, ou)
+        print('entry={}'.format(entry))
+
+        # If we have an entry then increment umichExcListBadAttempts
+        if entry:
+            print('Found dn={}'.format(entry.entry_dn))
+            bad_attempts = int(entry['umichExcListBadAttempts'][0]) + 1
+            mod_attrs = {
+                'umichExcListBadAttempts': [(MODIFY_REPLACE, [bad_attempts])],
+            }
+            self.conn.modify(entry.entry_dn, mod_attrs)
+            entry = self._search(key, ou)
+            print('entry={}'.format(entry))
+        # Else create a new entry
+        else:
+            new_dn = 'umichExcListName={},ou={},ou=ExclusionList,dc=umich,dc=edu'.format(key, ou)
+            objectClasses = {'Top', 'umichExcListText'}
+            attrs = {
+                'umichExcListBadAttempts': 1,
+                'umichExcListTimestamp': time.strftime('%Y%m%d%H%M%SZ', time.gmtime()),
+            }
+            self.conn.add(
+                new_dn,
+                objectClasses,
+                attrs,
+            )
+            print('Created new_dn={}'.format(new_dn))
+            entry = self._search(key, ou)
+
+        return {'entry': entry.entry_attributes_as_dict}
+
+
+    def delete(self, data, ou='IDProof'):
+        key = data['key']
+        delete_dn = 'umichExcListName={},ou={},ou=ExclusionList,dc=umich,dc=edu'.format(key, ou)
+        print('delete_dn={}'.format(delete_dn))
+        self.conn.delete(delete_dn)
+        return {'message': self.conn.result['description']}
+
+
+    def _search(self, umichExcListName, ou='IDProof'):
+        entry = ''
+        base = 'ou={},ou=ExclusionList,dc=umich,dc=edu'.format(ou)
+        print('Searching for umichExcListName={}'.format(umichExcListName))
+        self.conn.search(
+            base,
+            '(umichExcListName={})'.format(umichExcListName),
+            attributes=['*'],
+            time_limit=settings.LDAP_TIME_LIMIT,
+        )
+
+        if len(self.conn.entries) == 1:
+            entry = self.conn.entries[0]
+            print('Found dn={}'.format(entry.entry_dn))
+        elif len(self.conn.entries) == 0:
+            pass
+        else:
+            print('multiple results found')
+            raise ExcListError(message='multiple_results_found')
+
+        return entry
+

@@ -26,7 +26,7 @@ SECRET_KEY = '!qteb9xz$)%n3t@1#gi*bl1(wob82rq7sj2wd_f*uzvwkb+3v5'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['exclusion-list-dev.dsc.umich.edu']
 
 
 # Application definition

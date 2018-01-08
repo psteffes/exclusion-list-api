@@ -17,5 +17,5 @@ from django.contrib import admin
 from django.urls import include, path
 
 urlpatterns = [
-    path('secure/exclusionlist/', include('api.urls')),
+    path('api/secure/exclistv2/', include('api.urls')),
 ]

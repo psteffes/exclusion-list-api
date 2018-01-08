@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from .serializers import ExcListFindSerializer, ExcListAddDeleteSerializer
-from .exc_list_manager import exc_list_find, exc_list_add, exc_list_delete, ExcListError
+from .exc_list_manager import ExcList, ExcListError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,20 +15,27 @@ def find(request):
     Returns the entry as a json string if a match is found
     """
     try:
-        logger.info('<RESTRequest: {} \'{}\' data={}>'.format(request.method, request.path, request.data))
+        #logger.info('<RESTRequest: {} \'{}\' data={}>'.format(request.method, request.path, request.data))
+        print('<RESTRequest: {} \'{}\' data={}>'.format(request.method, request.path, request.data))
         serializer = ExcListFindSerializer(data=request.data)
 
         if serializer.is_valid():
-            entry = exc_list_find(serializer.data)
+            #result = exc_list_find(serializer.data)
+            result = ExcList().find(serializer.data)
             # Return 200 on a successful match
-            response = Response(entry.entry_attributes_as_dict)
+            response = Response(result)
         else:
             # Return a 400 on invalid input
             response = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     # Return a 404 on a failed match
-    except ExcListErrorError as e:
-        response = Response({"message": e.message}, status=status.HTTP_404_NOT_FOUND)
+    except ExcListError as e:
+        response = Response({
+            "message": e.message,
+            "status": 404,
+            },
+            status=status.HTTP_404_NOT_FOUND
+        )
 
     # Return a 500 on any unexpected exceptions
     except Exception as e:
@@ -50,9 +57,9 @@ def add(request):
         serializer = ExcListAddDeleteSerializer(data=request.data)
 
         if serializer.is_valid():
-            entry = exc_list_add(serializer.data)
+            result = ExcList().add(serializer.data)
             # Return 200 on a successful add
-            response = Response(entry.entry_attributes_as_dict)
+            response = Response(result)
         else:
             # Return a 400 on invalid input
             response = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -77,9 +84,9 @@ def delete(request):
         serializer = ExcListAddDeleteSerializer(data=request.data)
 
         if serializer.is_valid():
-            message = exc_list_delete(serializer.data)
+            result = ExcList().delete(serializer.data)
             # Return 200 on a successful delete
-            response = Response({'message': message})
+            response = Response(result)
         else:
             # Return a 400 on invalid input
             response = Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -90,3 +97,4 @@ def delete(request):
 
     logger.info('Return status_code={} response={}'.format(response.status_code, response.data))
     return response
+

@@ -1,0 +1,10 @@
+# Compiled source #
+###################
+*.pyc
+__pycache__/
+
+# Config Files #
+################
+.env
+certs/
+.coverage
