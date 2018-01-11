@@ -1,8 +1,10 @@
 from django.conf.urls import url
+from django.urls import path
 from . import views
 
 urlpatterns = [
-    url(r'^find/$', views.find, name='find'),
-    url(r'^add/$', views.add, name='add'),
-    url(r'^delete/$', views.delete, name='delete'),
+    path('bruteforcelist/add/', views.add_key, name='add_key'),
+    path('bruteforcelist/find/', views.find_key, name='find_key'),
+    path('bruteforcelist/delete/', views.delete_key, name='delete_key'),
+    path('umidexclist/find/', views.find_umid, name='find_umid'),
 ]

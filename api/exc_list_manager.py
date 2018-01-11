@@ -36,62 +36,44 @@ class ExcList:
         check_names=False,    # Do not check attr format from schema (for time formatting)
     )
 
-    def find(self, data, ou='IDProof'):
-        umid = data['umid']
-        key = data['key']
-
-        # Default values for response
-        response = {
-            'excluded': False,
-            'umid_blacklisted': False,
-            'max_attempts_exceeded': False,
-        }
-
-        # Search the admin ou for blacklisted umid
+    def find_umid(self, umid):
         entry = self._search(umid, ou='Admin')
 
         if entry:
-            print('Found dn={}'.format(entry.entry_dn))
-            response['excluded'] = True
-            response['umid_blacklisted'] = True
+            logger.debug('Found dn={}'.format(entry.entry_dn))
         else:
-            print('No entry in ou=Admin, checking ou={}'.format(ou))
+            raise ExcListError('not_found')
 
-        # Search the specified ou for the given key
-        base = 'ou={},ou=ExclusionList,dc=umich,dc=edu'.format(ou)
+        return entry.entry_attributes_as_dict            
+
+
+    def find_key(self, key, ou='IDProof'):
         entry = self._search(key, ou)
 
         if entry:
-            print('Found dn={}'.format(entry.entry_dn))
-            response['entry'] = entry.entry_attributes_as_dict
-            print('entry={}'.format(entry))
+            logger.debug('Found dn={}'.format(entry.entry_dn))
         else:
-            print('no entry found')
-
-        if response == {}:
             raise ExcListError('not_found')
 
-        print('response={}'.format(response))
-        return response
+        return entry.entry_attributes_as_dict
 
 
-    def add(self, data, ou='IDProof'):
-        key = data['key']
+    def add_key(self, key, ou='IDProof'):
 
         # Check if an entry already exists
         entry = self._search(key, ou)
-        print('entry={}'.format(entry))
+        logger.debug('entry={}'.format(entry))
 
         # If we have an entry then increment umichExcListBadAttempts
         if entry:
-            print('Found dn={}'.format(entry.entry_dn))
+            logger.debug('Found dn={}'.format(entry.entry_dn))
             bad_attempts = int(entry['umichExcListBadAttempts'][0]) + 1
             mod_attrs = {
                 'umichExcListBadAttempts': [(MODIFY_REPLACE, [bad_attempts])],
             }
             self.conn.modify(entry.entry_dn, mod_attrs)
             entry = self._search(key, ou)
-            print('entry={}'.format(entry))
+            logger.debug('entry={}'.format(entry))
         # Else create a new entry
         else:
             new_dn = 'umichExcListName={},ou={},ou=ExclusionList,dc=umich,dc=edu'.format(key, ou)
@@ -105,16 +87,15 @@ class ExcList:
                 objectClasses,
                 attrs,
             )
-            print('Created new_dn={}'.format(new_dn))
+            logger.debug('Created new_dn={}'.format(new_dn))
             entry = self._search(key, ou)
 
-        return {'entry': entry.entry_attributes_as_dict}
+        return entry.entry_attributes_as_dict
 
 
-    def delete(self, data, ou='IDProof'):
-        key = data['key']
+    def delete_key(self, key, ou='IDProof'):
         delete_dn = 'umichExcListName={},ou={},ou=ExclusionList,dc=umich,dc=edu'.format(key, ou)
-        print('delete_dn={}'.format(delete_dn))
+        logger.debug('delete_dn={}'.format(delete_dn))
         self.conn.delete(delete_dn)
         return {'message': self.conn.result['description']}
 
@@ -122,7 +103,7 @@ class ExcList:
     def _search(self, umichExcListName, ou='IDProof'):
         entry = ''
         base = 'ou={},ou=ExclusionList,dc=umich,dc=edu'.format(ou)
-        print('Searching for umichExcListName={}'.format(umichExcListName))
+        logger.debug('Searching for umichExcListName={},{}'.format(umichExcListName, base))
         self.conn.search(
             base,
             '(umichExcListName={})'.format(umichExcListName),
@@ -132,11 +113,11 @@ class ExcList:
 
         if len(self.conn.entries) == 1:
             entry = self.conn.entries[0]
-            print('Found dn={}'.format(entry.entry_dn))
+            logger.debug('Found dn={}'.format(entry.entry_dn))
         elif len(self.conn.entries) == 0:
             pass
-        else:
-            print('multiple results found')
+        else:    # pragma: no cover
+            logger.debug('multiple results found')
             raise ExcListError(message='multiple_results_found')
 
         return entry

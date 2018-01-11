@@ -1,18 +1,14 @@
 from rest_framework import serializers
 from django.core.validators import RegexValidator
 
-class ExcListFindSerializer(serializers.Serializer):
-    key = serializers.CharField(required=True)
 
-    ou = serializers.CharField(required=False)
-
+class ExcListUMIDSerializer(serializers.Serializer):
     umid = serializers.CharField(
         required=True,
         validators=[RegexValidator(r'^\d{8,8}$', 'Enter a valid UMID.')],
     )
 
 
-class ExcListAddDeleteSerializer(serializers.Serializer):
+class ExcListKeySerializer(serializers.Serializer):
     key = serializers.CharField(required=True)
 
-    ou = serializers.CharField(required=False)
