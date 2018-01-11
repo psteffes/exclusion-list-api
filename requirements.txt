@@ -1,6 +1,8 @@
 coverage==4.4.2
 Django==2.0.1
+django-jsonview==1.1.0
 django-rest-framework==0.1.0
+django-watchman==0.14.0
 djangorestframework==3.7.7
 ldap3==2.4
 pyasn1==0.4.2

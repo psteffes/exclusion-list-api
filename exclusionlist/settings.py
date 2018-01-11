@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.staticfiles',
     'api',
+    'watchman',
 ]
 
 MIDDLEWARE = [
@@ -131,7 +132,7 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': True,
         },
-        'urllib3': {
+        'watchman': {
             'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': True,
@@ -146,3 +147,7 @@ LDAP_USERNAME = config('LDAP_USERNAME')
 LDAP_PW = config('LDAP_PW')
 LDAP_TIME_LIMIT = config('LDAP_TIME_LIMIT', default='10', cast=int)
 
+# Watchman
+WATCHMAN_CHECKS = (
+    'api.my_watchman_checks.ldap',
+)

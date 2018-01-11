@@ -18,4 +18,5 @@ from django.urls import include, path
 
 urlpatterns = [
     path('api/secure/', include('api.urls')),
+    path('health/', include('watchman.urls')),
 ]
