@@ -113,7 +113,7 @@ class ExcList:
 
         if len(self.conn.entries) == 1:
             entry = self.conn.entries[0]
-            logger.debug('Found dn={}'.format(entry.entry_dn))
+            #logger.debug('Found dn={}'.format(entry.entry_dn))
         elif len(self.conn.entries) == 0:
             pass
         else:    # pragma: no cover
