@@ -3,8 +3,9 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from .serializers import ExcListUMIDSerializer, ExcListKeySerializer
-from .exc_list_manager import ExcList, ExcListError
+from .exc_list_manager import exc_list_find_umid, exc_list_find_key, exc_list_add_key, exc_list_delete_key, ExcListError
 import logging
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ def find_umid(request):
         serializer = ExcListUMIDSerializer(data=request.data)
 
         if serializer.is_valid():
-            result = ExcList().find_umid(serializer.data['umid'])
+            result = exc_list_find_umid(serializer.data['umid'])
             # Return 200 on a successful match
             response = Response(result)
         else:
@@ -39,6 +40,7 @@ def find_umid(request):
     # Return a 500 on any unexpected exceptions
     except Exception as e:    # pragma: no cover
         response = Response({"message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        logger.error(traceback.format_exc())
 
     logger.info('Return status_code={} response={}'.format(response.status_code, response.data))
     return response
@@ -56,7 +58,7 @@ def find_key(request):
 
         if serializer.is_valid():
             #result = exc_list_find(serializer.data)
-            result = ExcList().find_key(serializer.data['key'])
+            result = exc_list_find_key(serializer.data['key'])
             # Return 200 on a successful match
             response = Response(result)
         else:
@@ -92,7 +94,7 @@ def add_key(request):
         serializer = ExcListKeySerializer(data=request.data)
 
         if serializer.is_valid():
-            result = ExcList().add_key(serializer.data['key'])
+            result = exc_list_add_key(serializer.data['key'])
             # Return 200 on a successful add
             response = Response(result)
         else:
@@ -118,7 +120,7 @@ def delete_key(request):
         serializer = ExcListKeySerializer(data=request.data)
 
         if serializer.is_valid():
-            result = ExcList().delete_key(serializer.data['key'])
+            result = exc_list_delete_key(serializer.data['key'])
             # Return 200 on a successful delete
             response = Response(result)
         else:

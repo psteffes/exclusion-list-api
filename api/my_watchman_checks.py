@@ -23,6 +23,7 @@ def ldap():
             settings.LDAP_PW,
             auto_bind=True,
         )
+        conn.unbind()
     except Exception as e:    # pragma: no cover
         response = {
             'ok': False,

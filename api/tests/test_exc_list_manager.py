@@ -1,6 +1,6 @@
 from django.test import SimpleTestCase
 
-from ..exc_list_manager import ExcList, ExcListError
+from ..exc_list_manager import exc_list_find_umid, exc_list_find_key, exc_list_add_key, exc_list_delete_key, ExcListError
 
 import logging
 
@@ -20,12 +20,12 @@ class ExcListTests(SimpleTestCase):
         umid = '00133700'
 
         # Find an existing entry
-        entry = ExcList().find_umid(umid)
+        entry = exc_list_find_umid(umid)
         self.assertEqual(entry['umichExcListName'][0], umid)
 
         # Find a non-existent entry
         with self.assertRaises(ExcListError) as context:
-            ExcList().find_umid('00111100')
+            exc_list_find_umid('00111100')
         self.assertEqual(context.exception.message, 'not_found')
 
     # Test finds on key
@@ -33,18 +33,18 @@ class ExcListTests(SimpleTestCase):
         key = 'find-me'
 
         # Create the entry
-        ExcList().add_key(key)
+        exc_list_add_key(key)
         
         # Find the entry
-        entry = ExcList().find_key(key)
+        entry = exc_list_find_key(key)
         self.assertEqual(entry['umichExcListName'][0], key)
 
         # Delete the entry
-        ExcList().delete_key(key)
+        exc_list_delete_key(key)
 
         # Find the non-existent entry
         with self.assertRaises(ExcListError) as context:
-            ExcList().find_key(key)
+            exc_list_find_key(key)
         self.assertEqual(context.exception.message, 'not_found')
 
     # Test adds on key
@@ -52,33 +52,33 @@ class ExcListTests(SimpleTestCase):
         key = 'add-me'
 
         # Start with nothing
-        ExcList().delete_key(key)
+        exc_list_delete_key(key)
 
         # Create the entry
-        entry = ExcList().add_key(key)
+        entry = exc_list_add_key(key)
         self.assertEqual(entry['umichExcListName'][0], key)
         self.assertEqual(entry['umichExcListBadAttempts'][0], '1')
 
         # Increment badAttempts
-        entry = ExcList().add_key(key)
+        entry = exc_list_add_key(key)
         self.assertEqual(entry['umichExcListName'][0], key)
         self.assertEqual(entry['umichExcListBadAttempts'][0], '2')
 
         # Cleanup
-        ExcList().delete_key(key)
+        exc_list_delete_key(key)
 
     # Test deletes on key
     def test_delete_key(self):
         key = 'delete-me'
 
         # Create the entry
-        ExcList().add_key(key)
+        exc_list_add_key(key)
 
         # Delete the entry
-        entry = ExcList().delete_key(key)
+        entry = exc_list_delete_key(key)
         self.assertEqual(entry['message'], 'success')
 
         # Delete non-existent entry
-        entry = ExcList().delete_key(key)
+        entry = exc_list_delete_key(key)
         self.assertEqual(entry['message'], 'noSuchObject')
 

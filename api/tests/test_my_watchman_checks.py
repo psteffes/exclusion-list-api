@@ -1,7 +1,5 @@
 from django.test import SimpleTestCase
 
-from ..exc_list_manager import ExcList, ExcListError
-
 import logging
 
 
