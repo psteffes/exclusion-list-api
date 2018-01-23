@@ -77,6 +77,7 @@ def find_key(request):
     # Return a 500 on any unexpected exceptions
     except Exception as e:    # pragma: no cover
         response = Response({"message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        logger.error(traceback.format_exc())
 
     logger.info('Return status_code={} response={}'.format(response.status_code, response.data))
     return response
@@ -104,6 +105,7 @@ def add_key(request):
     # Return a 500 on any unexpected exceptions
     except Exception as e:    # pragma: no cover
         response = Response({"message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        logger.error(traceback.format_exc())
 
     logger.info('Return status_code={} response={}'.format(response.status_code, response.data))
     return response
@@ -130,6 +132,7 @@ def delete_key(request):
     # Return a 500 on any unexpected exceptions
     except Exception as e:    # pragma: no cover
         response = Response({"message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        logger.error(traceback.format_exc())
 
     logger.info('Return status_code={} response={}'.format(response.status_code, response.data))
     return response
