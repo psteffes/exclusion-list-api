@@ -50,45 +50,40 @@ def exc_list_add_key(key, ou='IDProof'):
     entry = _exc_list_search(key, ou)
     logger.debug('entry={}'.format(entry))
 
-    # If we have an entry then increment umichExcListBadAttempts
-    if entry:
-        logger.debug('Found dn={}'.format(entry.entry_dn))
-        bad_attempts = int(entry['umichExcListBadAttempts'][0]) + 1
-        mod_attrs = {
-            'umichExcListBadAttempts': [(MODIFY_REPLACE, [bad_attempts])],
-        }
-        # Connection context manager
-        with Connection(
-            Server(settings.LDAP_URI),
-            settings.LDAP_USERNAME,
-            settings.LDAP_PW,
-            auto_bind=True,
-            check_names=False,    # Do not check attr format from schema (for time formatting)
-        ) as conn:
-            conn.modify(entry.entry_dn, mod_attrs)
-        entry = _exc_list_search(key, ou)
-        logger.debug('entry={}'.format(entry))
-    # Else create a new entry
-    else:
-        new_dn = 'umichExcListName={},ou={},ou=ExclusionList,dc=umich,dc=edu'.format(key, ou)
-        objectClasses = {'Top', 'umichExcListText'}
-        attrs = {
-            'umichExcListBadAttempts': 1,
-            'umichExcListTimestamp': time.strftime('%Y%m%d%H%M%SZ', time.gmtime()),
-        }
-        # Connection context manager
-        with Connection(
-            Server(settings.LDAP_URI),
-            settings.LDAP_USERNAME,
-            settings.LDAP_PW,
-            auto_bind=True,
-            check_names=False,    # Do not check attr format from schema (for time formatting)
-        ) as conn:
-            conn.add(new_dn, objectClasses, attrs)
-        logger.debug('Created new_dn={}'.format(new_dn))
-        entry = _exc_list_search(key, ou)
+    with Connection(
+        Server(settings.LDAP_URI),
+        settings.LDAP_USERNAME,
+        settings.LDAP_PW,
+        auto_bind=True,
+        check_names=False,    # Do not check attr format from schema (for time formatting)
+    ) as conn:
 
-    return entry.entry_attributes_as_dict
+        # If we have an entry then increment umichExcListBadAttempts
+        if entry:
+            logger.debug('Found dn={}'.format(entry.entry_dn))
+            bad_attempts = int(entry['umichExcListBadAttempts'][0]) + 1
+            mod_attrs = {
+                'umichExcListBadAttempts': [(MODIFY_REPLACE, [bad_attempts])],
+            }
+            result = conn.modify(entry.entry_dn, mod_attrs)
+            logger.debug('result={}'.format(result))
+            response = _exc_list_search(key, ou).entry_attributes_as_dict
+            logger.debug('entry={}'.format(entry))
+        # Else create a new entry
+        else:
+            new_dn = 'umichExcListName={},ou={},ou=ExclusionList,dc=umich,dc=edu'.format(key, ou)
+            objectClasses = {'Top', 'umichExcListText'}
+            attrs = {
+                'umichExcListBadAttempts': 1,
+                'umichExcListTimestamp': time.strftime('%Y%m%d%H%M%SZ', time.gmtime()),
+            }
+            if conn.add(new_dn, objectClasses, attrs):
+                logger.debug('Created new_dn={} conn.result={}'.format(new_dn, conn.result)) 
+                response = {'dn': new_dn}
+            else:    # pragma: no cover
+                raise('Error creating new_dn={} result={}'.format(new_dn, conn.result))
+
+    return response
 
 
 def exc_list_delete_key(key, ou='IDProof'):

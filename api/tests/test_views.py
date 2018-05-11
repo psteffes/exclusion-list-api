@@ -41,8 +41,7 @@ class BruteForceListAddTests(SimpleTestCase):
         # Create the entry
         response = self.client.post(reverse('add_key'), data)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['umichExcListName'][0], key)
-        self.assertEqual(response.json()['umichExcListBadAttempts'][0], '1')
+        self.assertTrue(response.json()['dn'])
 
         # Increment bad attempts
         response = self.client.post(reverse('add_key'), upper_data)
